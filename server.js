@@ -7,6 +7,18 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Config: allow overriding schema/table and SSL via env
+const RAW_TABLE = process.env.MESSAGES_TABLE || 'messages';
+const RAW_SCHEMA = process.env.DB_SCHEMA || 'public';
+function sanitizeIdent(s) {
+  return s && /^[a-zA-Z0-9_]+$/.test(s) ? s : null;
+}
+const TABLE_NAME = sanitizeIdent(RAW_TABLE) || 'messages';
+const SCHEMA_NAME = sanitizeIdent(RAW_SCHEMA) || 'public';
+function qIdent(id) {
+  return '"' + String(id).replace(/"/g, '""') + '"';
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -19,6 +31,10 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  // Optional SSL for external DBs. Inside Coolify's internal network, keep it off by default.
+  ssl: process.env.DB_SSL === 'true'
+    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+    : undefined,
 });
 
 // Test database connection
@@ -30,6 +46,22 @@ pool.connect((err, client, release) => {
     release();
   }
 });
+
+async function getTableColumns() {
+  const sql = `
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = $1 AND table_name = $2
+    ORDER BY ordinal_position`;
+  const result = await pool.query(sql, [SCHEMA_NAME, TABLE_NAME]);
+  return result.rows.map(r => r.column_name);
+}
+
+function pickTimestampColumn(columns) {
+  const preferred = ['created_at', 'timestamp', 'createdat', 'inserted_at', 'created', 'time', 'date'];
+  const lower = new Set(columns.map(c => c.toLowerCase()));
+  return preferred.find(c => lower.has(c)) || null;
+}
 
 
 app.get('/api/messages', async (req, res) => {
@@ -80,13 +112,15 @@ app.get('/api/schema', async (req, res) => {
     const result = await pool.query(`
       SELECT column_name, data_type, is_nullable
       FROM information_schema.columns
-      WHERE table_name = 'messages'
+      WHERE table_schema = $1 AND table_name = $2
       ORDER BY ordinal_position
-    `);
+    `, [SCHEMA_NAME, TABLE_NAME]);
     
     res.json({
       success: true,
-      columns: result.rows
+      schema: SCHEMA_NAME,
+      table: TABLE_NAME,
+      columns: result.rows,
     });
   } catch (error) {
     console.error('Error fetching schema:', error);
@@ -101,13 +135,15 @@ app.get('/api/schema', async (req, res) => {
 
 app.get('/workadventure/messages', async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT * FROM messages 
-       ORDER BY created_at DESC`
-    );
+    // Determine available columns and pick an order-by column if present
+    const columns = await getTableColumns();
+    const orderCol = pickTimestampColumn(columns);
+    let sql = `SELECT * FROM ${qIdent(SCHEMA_NAME)}.${qIdent(TABLE_NAME)}`;
+    if (orderCol) sql += ` ORDER BY ${qIdent(orderCol)} DESC`;
+    const result = await pool.query(sql);
     
     const messages = result.rows.map(row => ({
-      timestamp: row.created_at || row.timestamp || new Date().toISOString(),
+      timestamp: row.created_at || row.timestamp || row.created || row.inserted_at || row.time || row.date || new Date().toISOString(),
       rawData: {
         type: row.type || 'chat',
         author: row.author || row.user_id || row.username || 'Unknown',
@@ -122,26 +158,34 @@ app.get('/workadventure/messages', async (req, res) => {
     res.json(messages);
   } catch (error) {
     console.error('Error fetching messages:', error);
-    res.status(500).json({
-      error: 'Failed to fetch messages',
-      details: error.message
-    });
+    const code = error && error.code ? String(error.code) : undefined;
+    // Helpful hints for common DB errors
+    if (code === '42P01' || /does not exist/i.test(error.message || '')) {
+      return res.status(500).json({
+        error: 'table_not_found',
+        details: `Table ${SCHEMA_NAME}.${TABLE_NAME} not found`,
+        hint: 'Set MESSAGES_TABLE and DB_SCHEMA env vars to match your database, or create the table.',
+      });
+    }
+    if (code === '3D000') {
+      return res.status(500).json({
+        error: 'database_not_found',
+        details: `Database ${process.env.DB_NAME} does not exist or is not accessible`,
+        hint: 'Verify DB_NAME in your environment variables.',
+      });
+    }
+    res.status(500).json({ error: 'Failed to fetch messages', details: error.message, code });
   }
 });
 
 
+// Read-only mode: Do not allow destructive operations
 app.delete('/workadventure/messages', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM messages');
-    res.json({ success: true, message: 'All messages cleared' });
-  } catch (error) {
-    console.error('Error clearing messages:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear messages',
-      details: error.message
-    });
-  }
+  return res.status(405).json({
+    success: false,
+    error: 'read_only',
+    message: 'Deleting messages is disabled. Data is sourced from the database only.'
+  });
 });
 
 app.get('/', (req, res) => {
@@ -151,6 +195,26 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Lightweight health/diagnostics
+app.get('/healthz', async (req, res) => {
+  try {
+    const ping = await pool.query('SELECT 1 as ok');
+    const tableExists = await pool.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`,
+      [SCHEMA_NAME, TABLE_NAME]
+    );
+    res.json({
+      ok: true,
+      db: ping.rows[0].ok === 1,
+      schema: SCHEMA_NAME,
+      table: TABLE_NAME,
+      tableExists: tableExists.rowCount > 0
+    });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 // Graceful shutdown
