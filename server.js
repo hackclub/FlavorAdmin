@@ -25,24 +25,36 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // connection pool
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  // Optional SSL for external DBs. Inside Coolify's internal network, keep it off by default.
-  ssl: process.env.DB_SSL === 'true'
-    ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
-    : undefined,
-});
+// In dev use public url
+// In prod use each var
+// reminder to set up a cloned db 
+const poolConfig = process.env.DB_PUBLIC_URL
+  ? {
+      connectionString: process.env.DB_PUBLIC_URL,
+      ssl: process.env.DB_SSL === 'true'
+        ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : undefined,
+    }
+  : {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+  
+      ssl: process.env.DB_SSL === 'true'
+        ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false' }
+        : undefined,
+    };
+
+const pool = new Pool(poolConfig);
 
 // Test database connection
 pool.connect((err, client, release) => {
   if (err) {
     console.error('Error connecting to the database:', err.stack);
   } else {
-    console.log('Successfully connected to PostgreSQL database');
+    console.log('Successfully connected to db');
     release();
   }
 });
@@ -170,6 +182,90 @@ app.get('/api/users/count', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to count users',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch user',
+      details: error.message
+    });
+  }
+});
+
+app.patch('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_admin, is_banned, has_unlocked_pets } = req.body;
+    
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+    
+    if (typeof is_admin === 'boolean') {
+      updates.push(`is_admin = $${paramCount++}`);
+      values.push(is_admin);
+    }
+    if (typeof is_banned === 'boolean') {
+      updates.push(`is_banned = $${paramCount++}`);
+      values.push(is_banned);
+    }
+    if (typeof has_unlocked_pets === 'boolean') {
+      updates.push(`has_unlocked_pets = $${paramCount++}`);
+      values.push(has_unlocked_pets);
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid fields to update'
+      });
+    }
+    
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+    
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update user',
       details: error.message
     });
   }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Management</title>
+    <title>Users - Flavor Town</title>
     <style>
         * {
             margin: 0;
@@ -134,6 +134,9 @@
             align-items: center;
             gap: 16px;
             flex-wrap: wrap;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
         }
 
         .user:hover {
@@ -229,7 +232,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>👥 Users</h1>
+            <h1>Users:</h1>
             <a href="/" class="nav-link">← Back to Home</a>
             <div class="stats">
                 <div class="stat">
@@ -311,7 +314,7 @@
                 if (user.has_unlocked_pets) badges.push('<span class="badge-pets">PETS</span>');
                 
                 return `
-                <div class="user">
+                <a href="/user.html?id=${user.id}" class="user">
                     <span class="user-name">${escapeHtml(user.given_name || 'Unknown User')}</span>
                     <span class="user-email">${escapeHtml(user.email || 'No email')}</span>
                     <span class="user-info">ID: ${user.id}</span>
@@ -320,7 +323,7 @@
                     <div class="user-meta">
                         ${badges.join('')}
                     </div>
-                </div>
+                </a>
             `}).join('');
         }
 

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+        }
+
+        h1 {
+            color: #000000;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            color: #666666;
+            text-decoration: none;
+            font-size: 14px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .nav-link:hover {
+            color: #000000;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #ffffff;
+            font-size: 18px;
+        }
+
+        .profile-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+        }
+
+        .profile-field {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .profile-field:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .field-label {
+            font-size: 12px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .field-value {
+            font-size: 16px;
+            color: #000000;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #e5e5e5;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+            border: 2px solid #000000;
+        }
+
+        .toggle.active {
+            background: #000000;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            border: 1px solid #000000;
+        }
+
+        .toggle.active .toggle-slider {
+            transform: translateX(24px);
+        }
+
+        .toggle-label {
+            font-size: 14px;
+            color: #666666;
+        }
+
+        .toggle.active ~ .toggle-label {
+            color: #000000;
+            font-weight: 600;
+        }
+
+        .error {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 32px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+            text-align: center;
+        }
+
+        .error h3 {
+            color: #000000;
+            margin-bottom: 8px;
+        }
+
+        .error p {
+            color: #666666;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0;
+            }
+
+            header, .profile-container, .error {
+                border-radius: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="userName">User Profile</h1>
+            <a href="/users.html" class="nav-link">← Back to Users</a>
+        </header>
+
+        <div class="loading" id="loading">Loading user...</div>
+        <div id="profileContent"></div>
+    </div>
+
+    <script>
+        const SERVER_URL = '';
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+
+        if (!userId) {
+            showError('No user ID provided');
+        } else {
+            loadUser();
+        }
+
+        async function loadUser() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/users/${userId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                if (data.success) {
+                    displayUser(data.user);
+                } else {
+                    throw new Error(data.error || 'Failed to fetch user');
+                }
+            } catch (error) {
+                console.error('Error loading user:', error);
+                showError(error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayUser(user) {
+            document.getElementById('userName').textContent = user.given_name || 'Unknown User';
+            
+            const container = document.getElementById('profileContent');
+            container.innerHTML = `
+                <div class="profile-container">
+                    <div class="profile-field">
+                        <div class="field-label">User ID</div>
+                        <div class="field-value">${user.id}</div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Name</div>
+                        <div class="field-value">${escapeHtml(user.given_name || 'N/A')}</div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Email</div>
+                        <div class="field-value">${escapeHtml(user.email || 'N/A')}</div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Slack ID</div>
+                        <div class="field-value">${escapeHtml(user.slack_id)}</div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Admin</div>
+                        <div class="toggle-container">
+                            <div class="toggle ${user.is_admin ? 'active' : ''}" onclick="toggleField('is_admin', ${!user.is_admin})">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span class="toggle-label">${user.is_admin ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Banned</div>
+                        <div class="toggle-container">
+                            <div class="toggle ${user.is_banned ? 'active' : ''}" onclick="toggleField('is_banned', ${!user.is_banned})">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span class="toggle-label">${user.is_banned ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Pets Unlocked</div>
+                        <div class="toggle-container">
+                            <div class="toggle ${user.has_unlocked_pets ? 'active' : ''}" onclick="toggleField('has_unlocked_pets', ${!user.has_unlocked_pets})">
+                                <div class="toggle-slider"></div>
+                            </div>
+                            <span class="toggle-label">${user.has_unlocked_pets ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Created At</div>
+                        <div class="field-value">${formatTime(user.created_at)}</div>
+                    </div>
+                    
+                    <div class="profile-field">
+                        <div class="field-label">Updated At</div>
+                        <div class="field-value">${formatTime(user.updated_at)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function toggleField(field, value) {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ [field]: value })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayUser(data.user);
+                } else {
+                    throw new Error(data.error || 'Failed to update user');
+                }
+            } catch (error) {
+                console.error('Error updating user:', error);
+                alert('Failed to update user: ' + error.message);
+                loadUser();
+            }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showError(message) {
+            document.getElementById('profileContent').innerHTML = `
+                <div class="error">
+                    <h3>Error</h3>
+                    <p>${escapeHtml(message)}</p>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
