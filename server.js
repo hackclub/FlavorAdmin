@@ -132,6 +132,49 @@ app.get('/api/schema', async (req, res) => {
   }
 });
 
+app.get('/api/users', async (req, res) => {
+  try {
+    const { limit = 100, offset = 0 } = req.query;
+    
+    const result = await pool.query(
+      `SELECT * FROM users 
+       ORDER BY created_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      users: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch users',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/users/count', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM users');
+    res.json({
+      success: true,
+      count: parseInt(result.rows[0].count)
+    });
+  } catch (error) {
+    console.error('Error counting users:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to count users',
+      details: error.message
+    });
+  }
+});
+
 
 app.get('/workadventure/messages', async (req, res) => {
   try {
