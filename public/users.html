@@ -130,6 +130,10 @@
             background: #f9f9f9;
             border-radius: 8px;
             transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
         }
 
         .user:hover {
@@ -137,44 +141,36 @@
             background: #f0f0f0;
         }
 
-        .user-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
         .user-name {
             font-weight: bold;
             color: #000000;
             font-size: 16px;
-        }
-
-        .user-time {
-            color: #666666;
-            font-size: 12px;
+            min-width: 150px;
         }
 
         .user-email {
             color: #333333;
             font-size: 14px;
-            margin-bottom: 8px;
+            min-width: 200px;
+        }
+
+        .user-info {
+            color: #666666;
+            font-size: 12px;
         }
 
         .user-meta {
             display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
             font-size: 12px;
-            color: #666666;
         }
 
         .user-meta span {
             background: #e5e5e5;
             padding: 4px 8px;
             border-radius: 4px;
+            white-space: nowrap;
         }
 
         .badge-admin {
@@ -316,14 +312,12 @@
                 
                 return `
                 <div class="user">
-                    <div class="user-header">
-                        <span class="user-name">${escapeHtml(user.given_name || 'Unknown User')}</span>
-                        <span class="user-time">${formatTime(user.created_at)}</span>
-                    </div>
-                    ${user.email ? `<div class="user-email">${escapeHtml(user.email)}</div>` : ''}
+                    <span class="user-name">${escapeHtml(user.given_name || 'Unknown User')}</span>
+                    <span class="user-email">${escapeHtml(user.email || 'No email')}</span>
+                    <span class="user-info">ID: ${user.id}</span>
+                    <span class="user-info">${escapeHtml(user.slack_id)}</span>
+                    <span class="user-info">${formatTime(user.created_at)}</span>
                     <div class="user-meta">
-                        <span>ID: ${user.id}</span>
-                        <span>Slack ID: ${escapeHtml(user.slack_id)}</span>
                         ${badges.join('')}
                     </div>
                 </div>
