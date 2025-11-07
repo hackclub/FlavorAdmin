@@ -290,6 +290,9 @@
 
                 const data = await response.json();
                 if (data.success) {
+                    if (field === 'is_banned' && value === true) {
+                        await banUserFromWorkAdventure();
+                    }
                     displayUser(data.user);
                 } else {
                     throw new Error(data.error || 'Failed to update user');
@@ -298,6 +301,29 @@
                 console.error('Error updating user:', error);
                 alert('Failed to update user: ' + error.message);
                 loadUser();
+            }
+        }
+
+        async function banUserFromWorkAdventure() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/users/${userId}/ban`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: 'You have been banned by an administrator.'
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    console.error('Failed to ban user in WorkAdventure:', data.error);
+                    alert('User banned in database, but failed to kick from WorkAdventure: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error banning user in WorkAdventure:', error);
+                alert('User banned in database, but failed to kick from WorkAdventure: ' + error.message);
             }
         }
 

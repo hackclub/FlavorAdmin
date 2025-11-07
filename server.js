@@ -271,6 +271,67 @@ app.patch('/api/users/:id', async (req, res) => {
   }
 });
 
+app.post('/api/users/:id/ban', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    
+    const userResult = await pool.query('SELECT slack_id FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    const recipientUuid = userResult.rows[0].slack_id;
+    const waApiUrl = process.env.WORKADVENTURE_API_URL;
+    const adminToken = process.env.ADMIN_API_TOKEN;
+    
+    if (!waApiUrl || !adminToken) {
+      console.error('WorkAdventure API not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'WorkAdventure API not configured'
+      });
+    }
+    
+    const banResponse = await fetch(`${waApiUrl}/admin/ban`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': adminToken
+      },
+      body: JSON.stringify({
+        recipientUuid: recipientUuid,
+        message: message || 'Scram kid, you are banned!'
+      })
+    });
+    
+    if (!banResponse.ok) {
+      const errorText = await banResponse.text();
+      console.error('WorkAdventure ban API error:', errorText);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to ban user in WorkAdventure',
+        details: errorText
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'User banned successfully'
+    });
+  } catch (error) {
+    console.error('Error banning user:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to ban user',
+      details: error.message
+    });
+  }
+});
+
 
 app.get('/workadventure/messages', async (req, res) => {
   try {
