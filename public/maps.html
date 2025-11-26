@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maps - Flavor Town</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+        }
+
+        h1 {
+            color: #000000;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            color: #666666;
+            text-decoration: none;
+            font-size: 14px;
+            margin-top: 8px;
+            display: inline-block;
+        }
+
+        .nav-link:hover {
+            color: #000000;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: #f5f5f5;
+            padding: 12px 20px;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #000000;
+        }
+
+        .controls {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #000000;
+            color: white;
+            border: 1px solid #333333;
+        }
+
+        .btn-primary:hover {
+            background: #333333;
+        }
+
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #ffffff;
+            font-size: 18px;
+        }
+
+        .maps-container {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(255, 255, 255, 0.1);
+            border: 1px solid #e5e5e5;
+        }
+
+        .map-card {
+            border: 2px solid #000000;
+            padding: 16px;
+            margin-bottom: 16px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .map-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .map-slack-id {
+            font-weight: bold;
+            font-size: 16px;
+            color: #000000;
+        }
+
+        .map-url {
+            color: #2563eb;
+            text-decoration: none;
+            word-break: break-all;
+        }
+        
+        .map-url:hover {
+            text-decoration: underline;
+        }
+
+        .map-meta {
+            font-size: 12px;
+            color: #666666;
+        }
+
+        .map-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-approved {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .map-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .reason-input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            flex: 1;
+            min-width: 200px;
+            font-size: 14px;
+        }
+
+        .no-maps {
+            text-align: center;
+            padding: 40px;
+            color: #666666;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0;
+            }
+            
+            header, .controls, .maps-container {
+                border-radius: 0;
+            }
+            
+            .map-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Maps Management</h1>
+            <a href="/" class="nav-link">← Back to Home</a>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total Maps</div>
+                    <div class="stat-value" id="totalMaps">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Pending Review</div>
+                    <div class="stat-value" id="pendingMaps">0</div>
+                </div>
+            </div>
+        </header>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="loadMaps()">Refresh</button>
+        </div>
+
+        <div class="maps-container">
+            <div class="loading" id="loading">Loading maps...</div>
+            <div id="mapsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const SERVER_URL = '';
+        let allMaps = [];
+
+        async function loadMaps() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('mapsContent').innerHTML = '';
+                
+                const response = await fetch(`${SERVER_URL}/api/maps?limit=1000`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allMaps = data.maps;
+                    displayMaps(allMaps);
+                    updateStats();
+                } else {
+                    throw new Error(data.error || 'Failed to load maps');
+                }
+            } catch (error) {
+                console.error('Error loading maps:', error);
+                document.getElementById('mapsContent').innerHTML = `
+                    <div class="no-maps">
+                        <h3>Error loading maps</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function displayMaps(maps) {
+            const container = document.getElementById('mapsContent');
+            if (maps.length === 0) {
+                container.innerHTML = `
+                    <div class="no-maps">
+                        <h3>No maps submitted yet</h3>
+                    </div>
+                `;
+                return;
+            }
+
+            // Helper to determine status
+            const getStatus = (map) => {
+                if (!map.is_reviewed) return 'pending';
+                if (map.is_approved) return 'approved';
+                return 'rejected';
+            };
+
+            // Sort by pending first, then by date
+            const sortedMaps = [...maps].sort((a, b) => {
+                const statusA = getStatus(a);
+                const statusB = getStatus(b);
+                
+                if (statusA === 'pending' && statusB !== 'pending') return -1;
+                if (statusA !== 'pending' && statusB === 'pending') return 1;
+                
+                return new Date(b.updated_at) - new Date(a.updated_at);
+            });
+
+            container.innerHTML = sortedMaps.map(map => {
+                const status = getStatus(map);
+                let statusClass = '';
+                let statusText = '';
+                
+                switch (status) {
+                    case 'approved':
+                        statusClass = 'status-approved';
+                        statusText = 'Approved';
+                        break;
+                    case 'rejected':
+                        statusClass = 'status-rejected';
+                        statusText = 'Rejected';
+                        break;
+                    default:
+                        statusClass = 'status-pending';
+                        statusText = 'Pending Approval';
+                }
+
+                const reasonDisplay = map.reason ? `<div style="font-size: 12px; color: #666; margin-top: 4px;">Reason: ${escapeHtml(map.reason)}</div>` : '';
+                
+                return `
+                <div class="map-card">
+                    <div class="map-header">
+                        <div class="map-info">
+                            <span class="map-slack-id">User: ${escapeHtml(map.slack_id)}</span>
+                            <a href="${escapeHtml(map.map_url)}" target="_blank" class="map-url">${escapeHtml(map.map_url)}</a>
+                            <span class="map-meta">Last updated: ${new Date(map.updated_at).toLocaleString()}</span>
+                            ${reasonDisplay}
+                        </div>
+                        <span class="map-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="map-actions">
+                        <input type="text" class="reason-input" id="reason-${map.slack_id}" placeholder="Reason (optional)" value="${escapeHtml(map.reason || '')}">
+                        <button class="btn-success" onclick="updateMap('${map.slack_id}', true)">Approve</button>
+                        <button class="btn-danger" onclick="updateMap('${map.slack_id}', false)">Reject</button>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        async function updateMap(slackId, isApproved) {
+            const reasonInput = document.getElementById(`reason-${slackId}`);
+            const reason = reasonInput ? reasonInput.value : '';
+            
+            try {
+                // Use closest button or find it (event.target might be the icon if we had one)
+                const btn = event.target; 
+                const originalText = btn.textContent;
+                btn.textContent = '...';
+                btn.disabled = true;
+                
+                const response = await fetch(`${SERVER_URL}/api/maps/${slackId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_approved: isApproved, reason })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    loadMaps(); // Reload to refresh state
+                } else {
+                    alert('Failed to update map: ' + (data.error || 'Unknown error'));
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Error updating map:', error);
+                alert('Error updating map');
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalMaps').textContent = allMaps.length;
+            const pendingCount = allMaps.filter(m => !m.is_reviewed).length;
+            document.getElementById('pendingMaps').textContent = pendingCount;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        loadMaps();
+    </script>
+</body>
+</html>

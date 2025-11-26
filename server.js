@@ -424,3 +424,88 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
+// Maps API
+app.get('/api/maps', async (req, res) => {
+  try {
+    const { limit = 100, offset = 0 } = req.query;
+    
+    const result = await pool.query(
+      `SELECT * FROM user_maps 
+       ORDER BY updated_at DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    
+    res.json({
+      success: true,
+      count: result.rows.length,
+      maps: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching maps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch maps',
+      details: error.message
+    });
+  }
+});
+
+app.get('/api/maps/count', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM user_maps');
+    res.json({
+      success: true,
+      count: parseInt(result.rows[0].count)
+    });
+  } catch (error) {
+    console.error('Error counting maps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to count maps',
+      details: error.message
+    });
+  }
+});
+
+app.patch('/api/maps/:slack_id', async (req, res) => {
+  try {
+    const { slack_id } = req.params;
+    const { is_approved, reason } = req.body;
+    
+    if (typeof is_approved !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid is_approved value'
+      });
+    }
+    
+    const result = await pool.query(
+      `UPDATE user_maps 
+       SET is_approved = $1, is_reviewed = TRUE, reason = $2, updated_at = CURRENT_TIMESTAMP 
+       WHERE slack_id = $3 
+       RETURNING *`,
+      [is_approved, reason, slack_id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Map not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      map: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating map:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update map',
+      details: error.message
+    });
+  }
+});
